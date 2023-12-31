@@ -1,0 +1,56 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/Memory.hdl
+
+/**
+ * The complete address space of the Hack computer's memory,
+ * including RAM and memory-mapped I/O. 
+ * The chip facilitates read and write operations, as follows:
+ *     Read:  out(t) = Memory[address(t)](t)
+ *     Write: if load(t-1) then Memory[address(t-1)](t) = in(t-1)
+ * In words: the chip always outputs the value stored at the memory 
+ * location specified by address. If load==1, the in value is loaded 
+ * into the memory location specified by address. This value becomes 
+ * available through the out output from the next time step onward.
+ * Address space rules:
+ * Only the upper 16K+8K+1 words of the Memory chip are used. 
+ * Access to address>0x6000 is invalid. Access to any address in 
+ * the range 0x4000-0x5FFF results in accessing the screen memory 
+ * map. Access to address 0x6000 results in accessing the keyboard 
+ * memory map. The behavior in these addresses is described in the 
+ * Screen and Keyboard chip specifications given in the book.
+ */
+
+CHIP Memory {
+    IN in[16], load, address[15];
+    OUT out[16];
+
+    PARTS:
+    // first detect for which section we will propogate load
+    //first half is mem, the second is screen and kbd
+    DMux(in=load, sel=address[14], a=doDataLoad, b=notDataSection);
+
+    //the next bit will be used to determin if its Screen otherwise ignore
+    DMux(in=notDataSection, sel=address[13], a=doScreenLoad, b=ignore);
+
+    //additional logic to force >0x6000 to be invalid and =0x6000 to be kbd
+    Or8Way(in=address[0..7], out=a);
+    Or8Way(in=address[5..12], out=b);
+    Or(a=a, b=b, out=SumBits);
+    Not(in=SumBits, out=allLowerBitsZero);
+    And(a=address[13], b=address[14], out=theMost2BitsSet );
+    And(a=theMost2BitsSet, b=allLowerBitsZero, out=isKbd );
+
+
+    RAM16K( in=in, load=doDataLoad, address[0..13]=address[0..13], out = outMem);
+    Screen( in=in, load=doScreenLoad, address[0..12]=address[0..12], out = outScreen);
+    //keyboard is out
+    Keyboard(out = outKbd);  
+
+    //no with Mux we will determine which will be in out
+    Mux16(a=false,b=outKbd,sel=isKbd, out=outKbdOrInvalid);    
+
+    Mux16(a=outScreen,b=outKbdOrInvalid,sel=address[13], out=outOther);
+    Mux16(a=outMem,b=outOther,sel=address[14], out=out);
+}

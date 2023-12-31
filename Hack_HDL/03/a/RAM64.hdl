@@ -1,0 +1,48 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/03/a/RAM64.hdl
+
+/**
+ * Memory of 64 registers, each 16 bit-wide. Out holds the value
+ * stored at the memory location specified by address. If load==1, then 
+ * the in value is loaded into the memory location specified by address 
+ * (the loaded value will be emitted to out from the next time step onward).
+ */
+
+CHIP RAM64 {
+    IN in[16], load, address[6];
+    OUT out[16];
+
+    PARTS:
+    // Put your code here:
+    //we will use last 3 bits of address to choose among ram8
+
+
+    DMux(in=load, sel = address[3], a=branch0, b=branch1);
+
+    DMux(in=branch0, sel =address[4], a=branch00, b=branch10);
+    DMux(in=branch1, sel =address[4], a=branch01, b=branch11);
+
+    DMux(in=branch00, sel =address[5], a=branch000, b=branch100);
+    DMux(in=branch01, sel =address[5], a=branch001, b=branch101);
+
+    DMux(in=branch10, sel =address[5], a=branch010, b=branch110);
+    DMux(in=branch11, sel =address[5], a=branch011, b=branch111);
+
+    //101  -> 1     
+
+    RAM8(in=in, load=branch000, address=address[0..2], out=o0);
+    RAM8(in=in, load=branch001, address=address[0..2], out=o1);
+
+    RAM8(in=in, load=branch010, address=address[0..2], out=o2);
+    RAM8(in=in, load=branch011, address=address[0..2], out=o3);
+    RAM8(in=in, load=branch100, address=address[0..2], out=o4);
+    RAM8(in=in, load=branch101, address=address[0..2], out=o5);
+    RAM8(in=in, load=branch110, address=address[0..2], out=o6);
+    RAM8(in=in, load=branch111, address=address[0..2], out=o7);
+   
+    //Mux8 way we will merge the final result to output based on address
+    Mux8Way16(a=o0, b=o1, c=o2, d=o3,  e=o4, f=o5, g=o6, h=o7,sel=address[3..5], out=out);
+
+}

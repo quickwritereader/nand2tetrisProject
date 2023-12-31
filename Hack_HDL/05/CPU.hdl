@@ -1,0 +1,124 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in the addressM output, and the 
+ * writeM control bit is asserted. (When writeM==0, any value may 
+ * appear in outM). The outM and writeM outputs are combinational: 
+ * they are affected instantaneously by the execution of the current 
+ * instruction. The addressM and pc outputs are clocked: although they 
+ * are affected by the execution of the current instruction, they commit 
+ * to their new values only in the next time step. If reset==1 then the 
+ * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * than to the address resulting from executing the current instruction. 
+ */
+
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    //@5  0000000000000101
+
+    //mux based instruction first bit 15 is A instruction 1 is C instruction
+ 
+    Mux16(a=instruction, b= outALU, sel=instruction[15], out=muxResultAreg);
+
+
+    
+    //loadA should be 1 when instruction[15] and also when A is in output
+
+    // 15,14,13,12,11,10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0  <-bit position
+    // 1  1  1  a  c1 c2 c3 c4 c5 c6 d1 d2 d3 j1 j2 j3  <-decodes
+    //d is store fields, d1 is A , d2 is D , d3 is M
+    Not(in =instruction[15] , out=isInstructionA );
+
+    And(a=instruction[12], b=instruction[15],out=flagA );
+    And(a=instruction[11], b=instruction[15],out=flagC1 );
+    And(a=instruction[10], b=instruction[15],out=flagC2 );
+    And(a=instruction[9], b=instruction[15],out=flagC3 );
+    And(a=instruction[8], b=instruction[15],out=flagC4 );
+    And(a=instruction[7], b=instruction[15],out=flagC5 );
+    And(a=instruction[6], b=instruction[15],out=flagC6 );
+    And(a=instruction[5], b=instruction[15],out=flagD1 );
+    And(a=instruction[4], b=instruction[15],out=flagD2 );
+    //flagD3 is writeM
+    And(a=instruction[3], b=instruction[15],out=writeM );
+    And(a=instruction[2], b=instruction[15],out=flagJ1 );
+    And(a=instruction[1], b=instruction[15],out=flagJ2 );
+    And(a=instruction[0], b=instruction[15],out=flagJ3 );
+
+
+    Or(a=isInstructionA, b=flagD1, out=loadA);
+    ARegister(in=muxResultAreg, load = loadA, out[0..14]=addressM, out[0..14]=nextA);
+    //a(flagA) is to choose either M (Memory[A]) or A 
+    //M is here inM accorrding input
+    Mux16(a[0..14]=nextA,a[15]=false, b=inM,  sel=flagA, out=aluArg2 );
+
+    //DRegister is set from output when d2 is 1 
+    
+    DRegister(in=outALU, load=flagD2, out=aluArg1nextD);
+
+    // c1    zx, // zero the x input?
+    // c2    nx, // negate the x input?
+    // c3    zy, // zero the y input?
+    // c4    ny, // negate the y input?
+    // c5    f,  // compute out = x + y (if 1) or x & y (if 0)
+    // c6    no; // negate the out output?
+    //out:
+    //        out[16], // 16-bit output
+    //     zr, // 1 if (out == 0), 0 otherwise
+    //     ng; // 1 if (out < 0),  0 otherwise
+
+    ALU(x=aluArg1nextD, y= aluArg2, zx=flagC1, nx=flagC2, zy = flagC3, ny=flagC4, f=flagC5, no=flagC6, out=outALU, out=outM, zr=flagZR, ng=flagNG );
+
+
+   // CHIP PC 
+   //  IN in[16],load,inc,reset;
+   //  OUT out[16];
+
+   //flagJ1 check out<0 flagJ2: check out==0, flagJ3 check out>0
+   //lets see if out<0 and ifwe asked to test it
+   //flagJ1 & (out<0) will be first
+   And(a=flagJ1, b=flagNG, out = isJump1);
+   //flagJ2 & (out==0) 
+   And(a=flagJ2, b=flagZR, out = isJump2);
+   //flagJ3 & (out>0) 
+   //out>0 is just not( or(flagZR,flagNG))
+   Or(a=flagZR,b=flagNG, out=flagLessEq);
+   Not(in=flagLessEq, out=flagGreat);
+   And(a=flagJ3, b=flagGreat, out=isJump3);
+  
+   // loadPc= Or(isJump1,isJump2,isJump3)
+   // As we see from this when flagJ1,J2 J3, is 1,1,1 one of this conditions will be true regardless
+   //leading to unconditional jump
+
+   Or(a=isJump1,b=isJump2, out=loadPC0);
+   Or(a=isJump3,b=loadPC0, out=loadPC);
+
+
+
+   PC(in[0..14]=nextA, in[15]=false, load=loadPC, inc=true, reset=reset,  out[0..14]=pc);
+
+}

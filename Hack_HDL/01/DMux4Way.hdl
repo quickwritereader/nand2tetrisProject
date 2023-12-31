@@ -1,0 +1,36 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/01/DMux4Way.hdl
+
+/**
+ * 4-way demultiplexor:
+ * {a, b, c, d} = {in, 0, 0, 0} if sel == 00
+ *                {0, in, 0, 0} if sel == 01
+ *                {0, 0, in, 0} if sel == 10
+ *                {0, 0, 0, in} if sel == 11
+ */
+
+CHIP DMux4Way {
+    IN in, sel[2];
+    OUT a, b, c, d;
+
+    PARTS:
+    // Put your code here:
+    // a,b,c, d, SelLeft, selRight
+    //Not sel =00  is right to left so sel[0] is last
+    Not(in=sel[1], out=NotSelLeft);
+    Not(in=sel[0], out=NotSelRight);
+    // a is 1 when in=1 and SelLeft=0 selRight=0 => (in and (not sel[1]) and (not sel[0]))
+    And(a=in, b=NotSelLeft, out=prevAndA);
+    And(a=prevAndA, b=NotSelRight, out=a);
+    // b is 1 when in=1 and SelLeft=0 and selRight=1
+    And(a=in, b=NotSelLeft, out=prevAndB);
+    And(a=prevAndB, b=sel[0], out=b);
+    // c is 1 when in=1 SelLeft=1 and selRight=0   => (in And SelLeft and (not selRight))
+    And(a=in, b=sel[1], out=prevAndC);
+    And(a=prevAndC, b=NotSelRight, out=c);
+    //d is (in and sel[1] and sel[0])
+    And(a=in, b=sel[1], out=prevAndD);
+    And(a=prevAndD, b=sel[0], out=d);
+}

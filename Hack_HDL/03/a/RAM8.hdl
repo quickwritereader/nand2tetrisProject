@@ -1,0 +1,61 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/03/a/RAM8.hdl
+
+/**
+ * Memory of 8 registers, each 16 bit-wide. Out holds the value
+ * stored at the memory location specified by address. If load==1, then 
+ * the in value is loaded into the memory location specified by address 
+ * (the loaded value will be emitted to out from the next time step onward).
+ */
+
+CHIP RAM8 {
+    IN in[16], load, address[3];
+    OUT out[16];
+
+    PARTS:
+    // Put your code here:
+    //lets build tree with two branches each. so 2**3 will get us to 8 leaves
+    //and choose in what branch our load will end using dMux
+    // we will use address[0] to choose first branch in stage 1 (s1) ending with 2
+    // adress[1] in stage 2 (s2) , thus ending with 4 nodes
+    // address[2] in stage 3(s3, thus ending with 8 nodes
+    // this way our load will be set in one of the 8 leaves based on address  3bits
+
+    // s1  s2  s3
+    //         < 
+    //     < 
+    //         < 
+    // < 
+    //         <
+    //     < 
+    //         < 
+
+    DMux(in=load, sel = address[0], a=branch0, b=branch1);
+
+    DMux(in=branch0, sel =address[1], a=branch00, b=branch10);
+    DMux(in=branch1, sel =address[1], a=branch01, b=branch11);
+
+    DMux(in=branch00, sel =address[2], a=branch000, b=branch100);
+    DMux(in=branch01, sel =address[2], a=branch001, b=branch101);
+
+    DMux(in=branch10, sel =address[2], a=branch010, b=branch110);
+    DMux(in=branch11, sel =address[2], a=branch011, b=branch111);
+
+    //101  -> 1     
+
+    Register(in=in, load=branch000, out=o0);
+    Register(in=in, load=branch001, out=o1);
+
+    Register(in=in, load=branch010, out=o2);
+    Register(in=in, load=branch011, out=o3);
+    Register(in=in, load=branch100, out=o4);
+    Register(in=in, load=branch101, out=o5);
+    Register(in=in, load=branch110, out=o6);
+    Register(in=in, load=branch111, out=o7);
+   
+    //Mux8 way we will merge the final result to output based on address
+    Mux8Way16(a=o0, b=o1, c=o2, d=o3,  e=o4, f=o5, g=o6, h=o7,sel=address, out=out);
+}
+

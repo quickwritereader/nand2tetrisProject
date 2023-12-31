@@ -1,0 +1,45 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/02/FullAdder.hdl
+
+/**
+ * Computes the sum of three bits.
+ */
+
+CHIP FullAdder {
+    IN a, b, c;  // 1-bit inputs
+    OUT sum,     // Right bit of a + b + c
+        carry;   // Left bit of a + b + c
+
+    PARTS:
+    // Put you code here:
+
+    //|   a   |   b   |   c   |  sum  | carry |
+    //|   0   |   0   |   0   |   0   |   0   |
+    //|   0   |   0   |   1   |   1   |   0   |
+    //|   0   |   1   |   0   |   1   |   0   |
+    //|   0   |   1   |   1   |   0   |   1   |
+    //|   1   |   0   |   0   |   1   |   0   |
+    //|   1   |   0   |   1   |   0   |   1   |
+    //|   1   |   1   |   0   |   0   |   1   |
+    //|   1   |   1   |   1   |   1   |   1   |
+    //
+    //carry is 1 when a'bc + ab'c + abc'+ abc
+    // we can simplify it further a'bc+ab'c + ab, ab was in half_adder
+    // c(a'b+ab') the second part is sum in half adder
+    //let's check sum
+    //sum is 1 when a'b'c+ a'bc'+ab'c'+abc
+    //c'(a'b+ab')+c(a'b'+ab)
+    //a'b + ab' is just (a'b' +ab)' it could be seen from truth table or
+    //(a'b' +ab)' => (a'b')' (ab)' = (a+b)(a'+ b')=>aa'+ab'+ba'+bb'  => ab'+ba' as aa' and bb' is 0
+    // furethemore the sum is just prev, xor(a,b) for the third it will be xor(new, prev)
+    //so xor(xor(a,b), c) is our sum so its just coring again HalfAdder sum
+
+    HalfAdder( a=a, b=b, sum=sum0, carry=carry0 );
+    And(a=c, b=sum0, out=c1);
+    Or(a=c1, b=carry0, out=carry);
+    Xor(a=c, b=sum0, out=sum);
+    //we could use mux as well to do it
+
+}
